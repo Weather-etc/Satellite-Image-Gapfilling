@@ -1,3 +1,6 @@
+"""
+This is used to test if K-Means partition is suitable for dataset.
+"""
 import cv2
 import glob
 from PIL import Image
