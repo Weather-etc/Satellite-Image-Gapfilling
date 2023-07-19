@@ -5,7 +5,6 @@ index.php?path=RUIvWnB3dWJmS3RvNXlWcjF4a1hLM1B0eERkak1wT2hueTFPRjFMSzVyQmJYMjVpQ
 k5eVllQlVQd1ZiTw==&uri=VWtuM1UzbVNVN0RsZzJMeTJvNlNpM29OalF0WTFQQjVZVnpuS3o5bnh1Ym0vYWhtWEh4ck1hREVUamE4SDZ0M2tsd1M
 """
 import sys
-import re
 import requests
 from lxml import etree
 

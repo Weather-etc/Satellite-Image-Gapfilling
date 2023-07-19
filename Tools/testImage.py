@@ -28,8 +28,6 @@ for img in imgList:
         # use K = 3 to compare results from two image
         if K == 3:
             compareGroup.append(label.flatten())
-            print(img.shape)
-            print(label.flatten().reshape(img.shape[:-1]))
         savePath = './data/segResult/{}_{}-Means.jpg'.format(pathList[count][15:-4], str(K))
         cv2.imwrite(savePath, res)
     count += 1
