@@ -27,7 +27,7 @@ savePath = '../data/rawTif/'
 
 response = requests.get(url=URL, headers=header, proxies=proxies)
 html = etree.HTML(response.text)
-divs = html.xpath('//div[@class="container"]/div[@class="row"]/section[contains(text(), "CIcyano")]')
+divs = html.xpath('//div[@class="container"]/div[@class="row"]/section[contains(text(), "CIcyano.WesternLErie")]')
 for div in divs:
     imgName = div.xpath('./text()')[0][20:24]
     imgUrl = div.xpath('./a/@href')[0]

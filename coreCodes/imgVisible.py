@@ -7,8 +7,7 @@ Note:
 import cv2
 import numpy as np
 
-print('part0')
-img_0 = cv2.imread('../data/rawTif/0105.tif')
+img_0 = cv2.imread('../data/rawTif/0714.tif')
 cv2.imshow("raw image", img_0)
 
 hsv_low = np.array([0, 0, 0])
@@ -49,6 +48,8 @@ cv2.createTrackbar('V high', 'modify', 0, 255, v_high)
 while True:
     dst = cv2.cvtColor(img_0, cv2.COLOR_BGR2HSV) # 转HSV
     dst = cv2.inRange(dst, hsv_low, hsv_high) # 通过HSV的高低阈值，提取图像部分区域
+
+    print(dst.shape)
     cv2.imshow('dst', dst)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
