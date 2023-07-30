@@ -49,9 +49,7 @@ while True:
     dst = cv2.cvtColor(img_0, cv2.COLOR_BGR2HSV) # 转HSV
     dst = cv2.inRange(dst, hsv_low, hsv_high) # 通过HSV的高低阈值，提取图像部分区域
 
-    print(dst.shape)
     cv2.imshow('dst', dst)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 cv2.destroyAllWindows()
-
