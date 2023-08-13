@@ -7,7 +7,7 @@ Note:
 import cv2
 import numpy as np
 
-img_0 = cv2.imread('../data/rawTif/0714.tif')
+img_0 = cv2.imread('../data/slightDirt/0719.tif')
 cv2.imshow("raw image", img_0)
 
 hsv_low = np.array([0, 0, 0])

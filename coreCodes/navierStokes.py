@@ -1,5 +1,4 @@
 import cv2
-import threading
 import numpy as np
 
 PIXEL_WHITE = 1
@@ -19,10 +18,10 @@ def create_mask(mask):
         for j in range(mask.shape[1]):
             color = mask[i, j]
             mask_data.append(Coord(i, j, color))
-    return mask_data
+    return np.array(mask_data)
 
 
-def perform_bertalmio_pde_inpainting_0(input_array, mask_array, output_array, total_iters, total_inpaint_iters,
+def perform_bertalmio_pde_inpainting_0(input_array, mask_array, total_iters, total_inpaint_iters,
                                        total_anidiffuse_iters, total_stages, delta_ts, sensitivities, diffuse_coef):
     # initialize output
     output_array = input_array
@@ -39,17 +38,17 @@ def perform_bertalmio_pde_inpainting_0(input_array, mask_array, output_array, to
         delta_t = delta_ts[stage]
 
         # declare variables
-        image_grad_row = None
-        image_grad_col = None
-        image_grad_norm = None
-        image_iso_row = None
-        image_iso_col = None
-        image_iso_norm = None
-        image_laplacian = None
-        image_laplacian_grad_row = None
-        image_laplacian_grad_col = None
-        diffuse_coefs = None
-        temp = None
+        image_grad_row = cv2.Mat
+        image_grad_col = cv2.Mat
+        image_grad_norm = cv2.Mat
+        image_iso_row = cv2.Mat(input_array)
+        image_iso_col = cv2.Mat(input_array)
+        image_iso_norm = cv2.Mat(input_array)
+        image_laplacian = cv2.Mat(input_array)
+        image_laplacian_grad_row = cv2.Mat(input_array)
+        image_laplacian_grad_col = cv2.Mat(input_array)
+        diffuse_coefs = cv2.Mat
+        temp = cv2.Mat
 
         # run stage of algorithm
         for it in range(0, total_iter):
@@ -60,7 +59,7 @@ def perform_bertalmio_pde_inpainting_0(input_array, mask_array, output_array, to
                 if diffuse_coef == 0:
                     diffuse_coefs = cv2.exp(-image_grad_norm.mul(1 / sensitivity))
                 else:
-                    temp = cv2.pow(image_grad_norm.mul(1 / sensitivity), 2)
+                    temp = cv2.pow(image_grad_norm * (1 / sensitivity), 2)
                     diffuse_coefs = 1 / (1 + temp)
                 output_array = cv2.Laplacian(image_laplacian, -1)
 
@@ -77,7 +76,8 @@ def perform_bertalmio_pde_inpainting_0(input_array, mask_array, output_array, to
                 output_array = cv2.Sobel(image_iso_row, -1, 1, 0)
                 output_array = cv2.Sobel(image_iso_col, -1, 0, 1)
                 image_iso_row *= -1
-                image_iso_norm = cv2.sqrt(image_iso_row.mul(image_iso_row) + image_iso_col.mul(image_iso_col))
+                image_iso_norm = cv2.sqrt(cv2.multiply(image_iso_row, image_iso_row)
+                                          + cv2.multiply(image_iso_col, image_iso_col))
                 output_array = cv2.Laplacian(image_laplacian, -1)
                 image_laplacian = cv2.Sobel(image_laplacian_grad_row, -1, 0, 1)
                 image_laplacian = cv2.Sobel(image_laplacian_grad_col, -1, 1, 0)
@@ -104,10 +104,11 @@ def imshowOutput(output_window_name, output_array):
 
 
 if __name__ == "__main__":
-    dir = "img/"
-    name = "lena"
-    image_name = dir + name + ".png"
-    mask_name = dir + name + "_mask.png"
+    print("show time")
+    dir = "../data/"
+    name = "0718_"
+    image_name = dir + name + "test.tif"
+    mask_name = dir + name + "mask.tif"
     window_name = image_name
     mask_window_name = mask_name
     output_window_name = "output_array"
@@ -121,19 +122,27 @@ if __name__ == "__main__":
     mask_array = cv2.imread(mask_name)
     mask_data = create_mask(mask_array)
 
+    # Bertalmio PDE Inpainting
+    total_iters = np.array([500, ])
+    total_inpaint_iters = np.array([6, ])
+    total_andiffuse_iters = np.array([6, ])
+    total_stages = 1
+    delta_ts = np.array([0.02, ])
+    sensitivites = np.array([100, ])
+    diffuse_coef = np.array([1, ])
+
+    output_array = perform_bertalmio_pde_inpainting_0(image_array, mask_data, total_iters,
+                                       total_inpaint_iters, total_andiffuse_iters, total_stages,
+                                       delta_ts, sensitivites, diffuse_coef)
+
+    print('alg completed')
+    cv2.imwrite('../data/0718_NSRes.tif', output_array)
     cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
     cv2.namedWindow(mask_window_name, cv2.WINDOW_AUTOSIZE)
     cv2.namedWindow(output_window_name, cv2.WINDOW_AUTOSIZE)
 
-    # Bertalmio PDE Inpainting
-    total_iters = [500, ]
-    total_inpaint_iters = [6, ]
-    total_andiffuse_iters = [6, ]
-    total_stages = 2
-    delta_ts = 0.02
-    sensitivites = [100, ]
-    diffuse_coef = 1
-
-    perform_bertalmio_pde_inpainting_0(image_array, mask_data, output_array, total_iters,
-                                       total_inpaint_iters, total_andiffuse_iters, total_stages,
-                                       delta_ts, sensitivites, diffuse_coef)
+    cv2.imshow(window_name, image_array)
+    cv2.imshow(mask_window_name, mask_array)
+    cv2.imshow(output_window_name, output_array)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
