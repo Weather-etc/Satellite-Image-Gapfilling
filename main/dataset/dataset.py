@@ -4,44 +4,27 @@ import cv2 as cv
 from skimage.morphology import disk, binary_dilation
 import numpy as np
 import random
+from ..tools.mask import build_mask, fetch_land_mask
+from ..config import unknown_low, unknown_high
 
 raw_list = glob.glob('../data/dataset_raw/*.tif')
-land_path = '../data/cleanImg/0218.tif'
-train_dir = '../data/dataset/train'
-test_dir = '../data/dataset/test'
+train_dir = '../../data/dataset/train'
+test_dir = '../../data/dataset/test'
 
 mask_shape = (293, 350)
-unknown_low = np.array([0, 0, 40])
-unknown_high = np.array([0, 0, 240])
-land_low = np.array([0, 0, 240])
-land_high = np.array([0, 0, 256])
 
 
-def pre_mask(img, range_low, range_high):
-    """
-    This function will build mask for unknown area in raw images.
-    Mask will use True for selected pixels and False for unselected area.
-    :return: mask - a bool numpy.ndarray shaped (293, 350)
-    """
-    mask = cv.inRange(img, range_low, range_high) // 255
-    mask = mask.astype(bool)
-    return mask
-
-
-def build_mask(shape, seed):
+def create_mask(shape, seed):
     """
     Building artificial masks for training set and test set.
     :param shape: shape of masks.
     :param seed: set seeds for random spots in masks.
     :return: mask
     """
-    # load land mask
-    land_img = cv.imread(land_path)
-    land_img = cv.cvtColor(land_img, cv.COLOR_BGR2HSV)
-    land_mask = pre_mask(land_img, land_low, land_high)
+    land_mask = fetch_land_mask()
 
-    mask = np.zeros(shape, dtype=bool)
     # Create blocks
+    mask = np.zeros(shape, dtype=bool)
     mask[120:140, 70:80] = 1
     mask[100:130, 270:310] = 1
     # Add long, narrow areas
@@ -76,10 +59,10 @@ def preprocess(images_paths):
         img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
         img_hs = img[:, :, (0, 1)]
         img_v = img[..., 2]
-        dst = pre_mask(img, unknown_low, unknown_high)
+        dst = build_mask(img, unknown_low, unknown_high)
         img_v = np.where(dst, 2, img_v)
 
-        land_mask = pre_mask(img, land_low, land_high)
+        land_mask = fetch_land_mask()
         img_v_copy = img_v * ~land_mask
         img_v_copy[img_v_copy == 0] = 40
 
@@ -115,7 +98,7 @@ def merge_save(img_paths, save_path):
     :return: a numpy.uint8 numpy.ndarray with the same shape of image provided
     """
     for i in range(len(img_paths)):
-        mask = build_mask(mask_shape, i)
+        mask = create_mask(mask_shape, i)
         img = cv.imread(img_paths[i])
         img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
