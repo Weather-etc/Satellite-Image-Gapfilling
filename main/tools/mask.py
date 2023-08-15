@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 
-land_path = '../../data/cleanImg/0218.tif'
+land_path = '../data/dataset/0218.tif'
 
 land_low = np.array([0, 0, 240])
 land_high = np.array([0, 0, 256])
@@ -15,8 +15,9 @@ def get_mask(img_path):
     :return: a numpy.ndarray
     """
     mask_path = img_path[:-4] + '_mask.png'
+    print(mask_path)
     img = cv.imread(mask_path, flags=0)
-    mask = 255 - img
+    mask = np.array([255, ], dtype=np.uint8) - img
     mask = mask < 0
     return mask
 

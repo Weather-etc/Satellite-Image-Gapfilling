@@ -8,8 +8,8 @@ from ..tools.mask import build_mask, fetch_land_mask
 from ..config import unknown_low, unknown_high
 
 raw_list = glob.glob('../data/dataset_raw/*.tif')
-train_dir = '../../data/dataset/train'
-test_dir = '../../data/dataset/test'
+train_dir = '../data/dataset/train'
+test_dir = '../data/dataset/test'
 
 mask_shape = (293, 350)
 
