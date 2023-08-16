@@ -101,6 +101,39 @@ class InpaintModel:
         output = output.astype(np.uint8)
         return output
 
+    def morph_operate(self, morph_v, morph_hs, mask, opt):
+        """
+        Do morphological operations on channel V and HS respectively.
+        :param morph_v: a numpy.uint8 numpy.ndarray.
+        :param morph_hs: a numpy.uint8 numpy.ndarray.
+        :param mask: a numpy.uint8 numpy.ndarray
+        :param opt: str. Flags of operation to be performed.
+        :return: morph_v, morph_hs, mask. All are numpy.uint8 numpy.ndarray.
+        """
+        if opt == 'ini_dilate':
+            iters = 1
+            kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 3))
+            morph_v = cv.dilate(morph_v, kernel, iterations=iters)
+            morph_hs = cv.dilate(morph_hs, kernel, iterations=iters)
+            mask = ~cv.dilate(~mask, kernel, iterations=iters)
+        elif opt == 'close':
+            kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 2))
+            morph_v = cv.dilate(morph_v, kernel, iterations=1)
+            morph_v = cv.erode(morph_v, kernel, iterations=1)
+            morph_hs = cv.dilate(morph_hs, kernel, iterations=1)
+            morph_hs = cv.dilate(morph_hs, kernel, iterations=1)
+            mask = ~cv.dilate(~mask, kernel)
+            mask = ~cv.erode(~mask, kernel)
+        elif opt == 'hole_fill':
+            kernel = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
+            morph_v = self.dilate_masked(morph_v, mask, kernel)
+            morph_hs = self.dilate_masked(morph_hs, mask, kernel)
+            mask = ~self.dilate_masked(~mask, mask, kernel)
+        else:
+            print(Fore.RED + 'ERROR: Unsupported morphological operation: ' + opt)
+            exit(1)
+        return morph_v, morph_hs, mask
+
     def morphology(self, img, img_mask, opt):
         """
         Perform initial dilate.
@@ -120,31 +153,7 @@ class InpaintModel:
         morph_v = img_v_copy
         morph_hs = img_hs
         new_mask = img_mask.astype(np.uint8)
-        if opt == 'ini_dilate':
-            iters = 1
-            kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 3))
-            morph_v = cv.dilate(morph_v, kernel, iterations=iters)
-            morph_hs = cv.dilate(morph_hs, kernel, iterations=iters)
-            new_mask = ~cv.dilate(~new_mask, kernel, iterations=iters)
-        elif opt == 'close':
-            kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 2))
-            morph_v = cv.dilate(morph_v, kernel, iterations=1)
-            morph_v = cv.erode(morph_v, kernel, iterations=1)
-            morph_hs = cv.dilate(morph_hs, kernel, iterations=1)
-            morph_hs = cv.dilate(morph_hs, kernel, iterations=1)
-            new_mask = ~cv.dilate(~new_mask, kernel)
-            new_mask = ~cv.erode(~new_mask, kernel)
-            # morph_v = cv.morphologyEx(morph_v, cv.MORPH_CLOSE, kernel)
-            # morph_hs = cv.morphologyEx(morph_hs, cv.MORPH_CLOSE, kernel)
-            # new_mask = ~cv.morphologyEx(~new_mask, cv.MORPH_CLOSE, kernel)
-        elif opt == 'hole_fill':
-            kernel = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
-            morph_v = self.dilate_masked(morph_v, img_mask, kernel)
-            morph_hs = self.dilate_masked(morph_hs, img_mask, kernel)
-            new_mask = ~self.dilate_masked(~new_mask, img_mask, kernel)
-        else:
-            print(Fore.RED + 'ERROR: Unsupported morphological operation: ' + opt)
-            exit(1)
+        morph_v, morph_hs, new_mask = self.morph_operate(morph_v, morph_hs, new_mask, opt)
         # generate result
         res = np.zeros(img.shape)
         new_mask = new_mask.astype(bool)
