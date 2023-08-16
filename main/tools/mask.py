@@ -15,10 +15,9 @@ def get_mask(img_path):
     :return: a numpy.ndarray
     """
     mask_path = img_path[:-4] + '_mask.png'
-    print(mask_path)
     img = cv.imread(mask_path, flags=0)
     mask = np.array([255, ], dtype=np.uint8) - img
-    mask = mask < 0
+    mask = mask > 0
     return mask
 
 
