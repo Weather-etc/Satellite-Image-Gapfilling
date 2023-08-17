@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 
-land_path = '../data/dataset/0218.tif'
+land_path = './data/dataset/0218.tif'
 
 land_low = np.array([0, 0, 240])
 land_high = np.array([0, 0, 256])

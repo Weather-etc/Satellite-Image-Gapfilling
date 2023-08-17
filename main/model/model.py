@@ -9,9 +9,10 @@ from skimage.restoration import inpaint
 
 
 class InpaintModel:
-    def __init__(self, img_paths, save_path):
-        self.img_paths = img_paths
-        self.save_path = save_path
+    def __init__(self):
+        self.DILATE = 0
+        self.ERODE = 1
+        self.CLOSE = 2
 
     @staticmethod
     def image_padding(img, shape):
@@ -21,7 +22,6 @@ class InpaintModel:
         :param shape: a numpy.ndarray. Shape of kernel.
         :return: img_pad: a numpy.ndarray. Padded image
         """
-        img_pad = img
         if img.ndim == 3:
             img_pad = np.pad(img, ((shape[0] // 2, shape[0] // 2),
                                    (shape[1] // 2, shape[1] // 2),
@@ -32,8 +32,7 @@ class InpaintModel:
                                    (shape[1] // 2, shape[1] // 2)),
                              'constant', constant_values=0)
         else:
-            print(Fore.RED + 'ERROR: Unsupported image dimension')
-            exit(1)
+            raise ValueError('The dimension of image is not allowed')
         return img_pad
 
     @staticmethod
@@ -48,30 +47,28 @@ class InpaintModel:
             return kernel
         # Check whether diemsions of image and kernel match
         if img.ndim > kernel.ndim + 1:
-            print(Fore.RED + 'ERROR: dimension of kernel is not match')
-            exit(1)
+            raise ValueError('dimensions of kernel and image are not match')
         elif img.ndim > kernel.ndim:
             kernel = kernel[..., np.newaxis]
         else:
-            print(Fore.RED + 'ERROR: dimension of image is less than kernel')
-            exit(1)
+            raise ValueError('dimension of image is less than kernel')
         # Expand kernel to different channels
         if kernel.shape[-1] < img.shape[-1]:
             if kernel.shape[-1] == 1:
                 ker_new = (kernel, ) * img.shape[-1]
                 kernel = np.concatenate(ker_new, axis=-1)
             else:
-                print(Fore.RED + 'ERROR: shape of kernel is not match')
-                exit(1)
+                raise ValueError('shape of kernel is not match')
         return kernel
 
-    def dilate_masked(self, img, mask, kernel):
+    def morph_masked_opt(self, img, mask, kernel, opt):
         """
-        This method performs a dilate operation with mask provided.
-        :param img: a numpy.uint8 numpy.ndarray. Image needed to do dilation.
-        :param mask: a bool numpy.ndarray. Mask specified the area to do dilation.
-        :param kernel: a 0-1 numpy.ndarray. Kernel of dilation. Notice that shape must be odd.
-        :return: output: a numpy.uint8 numpy.ndarray with the same size of img.
+
+        :param img:
+        :param mask:
+        :param kernel:
+        :param opt:
+        :return:
         """
         kernel = self.adjust_kernel(img, kernel)
         indices = np.where(mask == 1)
@@ -88,17 +85,37 @@ class InpaintModel:
             range1 = np.array(index_pad + np.array(shape) // 2 + 1)
             range1 = range1.astype(np.int16)
 
-            submat = img_pad[range0[0]:range1[0], range0[1]:range1[1]]
+            submat = img_pad[range0[0]:range1[0], range0[1]:range1[1]].copy()
             submat = submat * kernel
-            res = np.max(submat)
+            res = np.max(submat) if opt == 'dilate' else np.min(submat)
             output[tuple(index)] = res
 
-        if mask.ndim < img.ndim:
-            mask = mask[..., np.newaxis]
-            mask_new = (mask, ) * img.shape[-1]
-            mask = np.concatenate(mask_new, axis=2)
         output = output * mask + img * ~mask
         output = output.astype(np.uint8)
+        return output
+
+    def morph_masked(self, img, mask, kernel, opt):
+        """
+        This method performs a dilate operation with mask provided.
+        :param img: a numpy.uint8 numpy.ndarray. Image needed to do dilation.
+        :param mask: a bool numpy.ndarray. Mask specified the area to do dilation.
+        :param kernel: a 0-1 numpy.ndarray. Kernel of dilation. Notice that shape must be odd.
+        :param opt: int.
+        :return: output: a numpy.uint8 numpy.ndarray with the same size of img.
+        """
+        if opt not in (self.DILATE, self.CLOSE):
+            raise ValueError("Unsupported operation " + opt)
+        if kernel.ndim < img.ndim:
+            res = [None, ] * img.shape[-1]
+            for i in range(img.shape[-1]):
+                res[i] = self.morph_masked_opt(img[..., i].copy(), mask, kernel, opt)
+                res[i] = res[i][..., np.newaxis]
+            output = np.concatenate(res, axis=-1)
+            print(output.shape)
+        elif kernel.ndim == img.ndim:
+            output = self.morph_masked_opt(img.copy(), mask, kernel, opt)
+        else:
+            raise ValueError('dimensions of kernel and image do not match')
         return output
 
     def morph_operate(self, morph_v, morph_hs, mask, opt):
@@ -125,18 +142,17 @@ class InpaintModel:
             mask = ~cv.dilate(~mask, kernel)
             mask = ~cv.erode(~mask, kernel)
         elif opt == 'hole_fill':
-            kernel = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
-            morph_v = self.dilate_masked(morph_v, mask, kernel)
-            morph_hs = self.dilate_masked(morph_hs, mask, kernel)
-            mask = ~self.dilate_masked(~mask, mask, kernel)
+            kernel = cv.getStructuringElement(cv.MORPH_RECT, (41, 41))
+            morph_v = self.morph_masked(morph_v, mask, kernel, self.DILATE)
+            morph_hs = self.morph_masked(morph_hs, mask, kernel, self.DILATE)
+            mask = ~self.morph_masked(~mask, mask, kernel, self.DILATE)
         else:
-            print(Fore.RED + 'ERROR: Unsupported morphological operation: ' + opt)
-            exit(1)
+            raise ValueError('Unsupported morphological operation: ' + opt)
         return morph_v, morph_hs, mask
 
     def morphology(self, img, img_mask, opt):
         """
-        Perform initial dilate.
+
         :param img: a numpy.uint8 numpy.ndarray. Should in HSV format.
         :param img_mask: a bool numpy.ndarray. The mask of img, should be a bool numpy.ndarray.
         :return: res: a numpy.uint8 numpy.ndarray. Image after dilate
@@ -176,70 +192,44 @@ class InpaintModel:
         img = land_mask * ~land_mask
         return img
 
-    def inpaint(self):
-        imgs = map(cv.imread, self.img_paths)
+    def inpaint(self, img, img_mask):
+        """
 
-        count = 0
-        for img in imgs:
-            img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-            img_mask = get_mask(self.img_paths[count])
+        :param img: a numpy.uint8 numpy.ndarray. It should be in HSV format.
+        :param img_mask: a bool numpy.ndarray.
+        :return: img: a numpy.uint8 numpy.ndarray. Image after inpainting.
+        """
+        img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+        # Perform initial dilation
+        img, img_mask = self.morphology(img, img_mask, 'ini_dilate')
+        # do small hole closure
+        img, img_mask = self.morphology(img, img_mask, 'close')
+        # if unknown pixels still exist:
+        if len(np.unique(img_mask)) > 1:
+            land_mask = fetch_land_mask()
+            land_mask = np.concatenate([land_mask[..., np.newaxis], ]*3, axis=-1)
+            img_copy = img * ~land_mask
+            img_copy = img_copy.astype(np.uint8)
+
+            img1 = cv.cvtColor(img_copy, cv.COLOR_HSV2BGR)
+            cv.imshow('img1', img1)
+
+            img_copy = inpaint.inpaint_biharmonic(image=img1, mask=img_mask, channel_axis=-1)
+
+            # img0 = cv.cvtColor(img_copy, cv.COLOR_HSV2BGR)
+            cv.imshow('img0', img_copy)
             cv.waitKey(0)
 
-            img_mask_copy = np.ones(img_mask.shape) * img_mask * 255
-            img_mask_copy = img_mask_copy.astype(np.uint8)
-            cv.imshow('origin_mask', img_mask_copy)
+            img = img * land_mask + img_copy * ~land_mask
 
+        img = img.astype(np.uint8)
 
-            # Perform initial dilation
-            img, img_mask = self.morphology(img, img_mask, 'ini_dilate')
+        img = cv.cvtColor(img, cv.COLOR_HSV2BGR)
+        cv.imshow('res', img)
+        img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+        cv.waitKey(0)
 
-            img = cv.cvtColor(img, cv.COLOR_HSV2BGR)
-            cv.imshow('initial', img)
-            img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-            img_mask_copy = np.ones(img_mask.shape) * img_mask * 255
-            img_mask_copy = img_mask_copy.astype(np.uint8)
-            cv.imshow('initial_mask', img_mask_copy)
-
-
-            # do small hole closure
-            img, img_mask = self.morphology(img, img_mask, 'close')
-
-            img = cv.cvtColor(img, cv.COLOR_HSV2BGR)
-            cv.imshow('closure', img)
-            img_mask_copy = np.ones(img_mask.shape) * img_mask * 255
-            img_mask_copy = img_mask_copy.astype(np.uint8)
-            cv.imshow('mask', img_mask_copy)
-
-            cv.waitKey(0)
-            img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-
-            # small hole fill
-            img, img_mask = self.morphology(img, img_mask, 'hole_fill')
-
-            img = cv.cvtColor(img, cv.COLOR_HSV2BGR)
-            cv.imshow('hole_fill', img)
-            img_mask_copy = np.ones(img_mask.shape) * img_mask * 255
-            img_mask_copy = img_mask_copy.astype(np.uint8)
-            cv.imshow('mask', img_mask_copy)
-            cv.waitKey(0)
-            img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-
-            # if unknown pixels still exist:
-            if len(np.unique(img_mask)) > 1:
-                land_mask = fetch_land_mask()
-                img_copy = img * ~land_mask
-                img_copy = inpaint.inpaint_biharmonic(img_copy, img_mask, channel_axis=-1)
-                img = img * land_mask + img_copy * ~land_mask
-
-            img = cv.cvtColor(img, cv.COLOR_HSV2BGR)
-            cv.imshow('res', img)
-            cv.waitKey(0)
-            exit()
-
-            path = os.path.join(self.save_path, self.img_paths[count][-8:-4] + '_res.tif')
-            cv.imwrite(path, img)
-            count += 1
-        print('inpainting completed')
+        return img
 
 
 if __name__ == '__main__':
