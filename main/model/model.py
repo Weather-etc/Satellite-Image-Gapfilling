@@ -9,10 +9,11 @@ from skimage.restoration import inpaint
 
 
 class InpaintModel:
-    def __init__(self):
+    def __init__(self, land_mask):
         self.DILATE = 0
         self.ERODE = 1
         self.CLOSE = 2
+        self.land_mask = land_mask
 
     @staticmethod
     def image_padding(img, shape):
@@ -142,7 +143,7 @@ class InpaintModel:
             mask = ~cv.dilate(~mask, kernel)
             mask = ~cv.erode(~mask, kernel)
         elif opt == 'hole_fill':
-            kernel = cv.getStructuringElement(cv.MORPH_RECT, (41, 41))
+            kernel = cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
             morph_v = self.morph_masked(morph_v, mask, kernel, self.DILATE)
             morph_hs = self.morph_masked(morph_hs, mask, kernel, self.DILATE)
             mask = ~self.morph_masked(~mask, mask, kernel, self.DILATE)
@@ -158,7 +159,7 @@ class InpaintModel:
         :return: res: a numpy.uint8 numpy.ndarray. Image after dilate
         :return mask_new: a bool numpy.ndarray. New mask after morphological operations.
         """
-        land_mask = fetch_land_mask()
+        land_mask = fetch_land_mask(self.land_mask)
         img_hs = img[..., (0, 1)]
         img_v = img[..., 2]
         # do some transforms before dilation
@@ -201,37 +202,40 @@ class InpaintModel:
         """
         img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
         # Perform initial dilation
-        img, img_mask = self.morphology(img, img_mask, 'ini_dilate')
+        # img, img_mask = self.morphology(img, img_mask, 'ini_dilate')
         # do small hole closure
-        img, img_mask = self.morphology(img, img_mask, 'close')
+        # img, img_mask = self.morphology(img, img_mask, 'close')
+        # masked dilation
+        # img, img_mask = self.morphology(img, img_mask, 'hole_fill')
         # if unknown pixels still exist:
         if len(np.unique(img_mask)) > 1:
-            land_mask = fetch_land_mask()
+            land_mask = fetch_land_mask(self.land_mask)
             land_mask = np.concatenate([land_mask[..., np.newaxis], ]*3, axis=-1)
             img_copy = img * ~land_mask
             img_copy = img_copy.astype(np.uint8)
 
-            img1 = cv.cvtColor(img_copy, cv.COLOR_HSV2BGR)
-            cv.imshow('img1', img1)
+            # especially for cv.inpaint
+            # img_mask = img_mask.astype(np.uint8)
+            # img_mask = img_mask * 255
 
-            img_copy = inpaint.inpaint_biharmonic(image=img1, mask=img_mask, channel_axis=-1)
+            # img_copy = cv.inpaint(img_copy, img_mask, 3, cv.INPAINT_TELEA)
+            # img_copy = cv.inpaint(img_copy, img_mask, 3, cv.INPAINT_NS)
 
-            # img0 = cv.cvtColor(img_copy, cv.COLOR_HSV2BGR)
-            cv.imshow('img0', img_copy)
-            cv.waitKey(0)
-
+            img_copy = inpaint.inpaint_biharmonic(image=img_copy, mask=img_mask, channel_axis=-1)
+            img_copy = img_copy * 255
             img = img * land_mask + img_copy * ~land_mask
-
         img = img.astype(np.uint8)
-
         img = cv.cvtColor(img, cv.COLOR_HSV2BGR)
+
         cv.imshow('res', img)
-        img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
         cv.waitKey(0)
 
         return img
 
 
 if __name__ == '__main__':
-    model = InpaintModel(img_paths=('../data/dataset/train/0718.tif', ), save_path=" ")
-    model.inpaint()
+    path = '../data/dataset/train/0718.tif'
+    img0 = cv.imread(path)
+    mask = get_mask('../data/dataset/train/0718.tif')
+    model = InpaintModel('../data/dataset/0218.tif')
+    model.inpaint(img0, mask)

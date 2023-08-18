@@ -4,10 +4,11 @@ import cv2 as cv
 from skimage.morphology import disk, binary_dilation
 import numpy as np
 import random
-from ..tools.mask import build_mask, fetch_land_mask
-from ..config import unknown_low, unknown_high
+from tools.mask import build_mask, fetch_land_mask
+from config import unknown_low, unknown_high
 
 raw_list = glob.glob('../data/dataset_raw/*.tif')
+land_path = '../data/dataset/0218.tif'
 train_dir = '../data/dataset/train'
 test_dir = '../data/dataset/test'
 
@@ -21,15 +22,13 @@ def create_mask(shape, seed):
     :param seed: set seeds for random spots in masks.
     :return: mask
     """
-    land_mask = fetch_land_mask()
+    land_mask = fetch_land_mask(land_path)
 
     # Create blocks
     mask = np.zeros(shape, dtype=bool)
     mask[120:140, 70:80] = 1
-    mask[100:130, 270:310] = 1
     # Add long, narrow areas
-    mask[100:110, 60:120] = 1
-    mask[60:100, 150:160] = 1
+    # mask[100:110, 60:120] = 1
     # Create spots
     rstate = np.random.default_rng(seed)
     for radius in [0, 2, 4]:
@@ -62,7 +61,7 @@ def preprocess(images_paths):
         dst = build_mask(img, unknown_low, unknown_high)
         img_v = np.where(dst, 2, img_v)
 
-        land_mask = fetch_land_mask()
+        land_mask = fetch_land_mask(land_path)
         img_v_copy = img_v * ~land_mask
         img_v_copy[img_v_copy == 0] = 40
 
@@ -81,6 +80,9 @@ def preprocess(images_paths):
         res = cv.cvtColor(res, cv.COLOR_HSV2BGR)
 
         # save images preprocessed to directories
+        # first save ground truth
+        path = f'../data/dataset/truth/{images_paths[count][-8:]}'
+        cv.imwrite(path, res)
         if count / num <= 0.7:
             path = f'../data/dataset/train/{images_paths[count][-8:]}'
             cv.imwrite(path, res)

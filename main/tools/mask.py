@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 
-land_path = './data/dataset/0218.tif'
+# land_path = './data/dataset/0218.tif'
 
 land_low = np.array([0, 0, 240])
 land_high = np.array([0, 0, 256])
@@ -32,7 +32,7 @@ def build_mask(img, range_low, range_high):
     return mask
 
 
-def fetch_land_mask():
+def fetch_land_mask(land_path):
     """
     This function produces a mask indicating land pixels.
     :return: a bool numpy.ndarray where int 1 configs land while int 0 configs water.
