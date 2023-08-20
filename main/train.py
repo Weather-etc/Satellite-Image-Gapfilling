@@ -20,7 +20,7 @@ train_img_paths = ('./data/dataset/train/0718.tif', )
 
 
 def draw_scatter(pairs, axis=0):
-    method = 'Biharmonic'
+    method = 'Dilate_Bihar'
     values_x = []
     values_y = []
     for pair in pairs:
@@ -64,21 +64,24 @@ def main():
     for img in train_imgs:
         img_path = train_img_paths[count]
         img_mask = get_mask(img_path)
-        # perform inpainting and compute mse
-        res = model.inpaint(img, img_mask)
-        mse = np.square(np.subtract(img, res)).mean()
-        mse_sum += mse
-        # save predicted-truth pixels value
+        # get the ground truth
         img_name = train_img_paths[count][-8:]
         truth = cv.imread(truth_dir + img_name)
-        print(np.max(truth))
-        img_mask_raw = get_mask(img_path)
+        # perform inpainting and compute mse
+        res = model.inpaint(img, img_mask)
+        mse = np.square(np.subtract(truth, res)).mean()
+        mse_sum += mse
+
+        plt.imshow(res)
+        plt.show()
+        # save predicted-truth pixels value
+        '''img_mask_raw = get_mask(img_path)
         pred = res[img_mask_raw == 1]
         truth = truth[img_mask_raw == 1]
         pairs = list(zip(pred, truth))
         draw_scatter(pairs, 0)
         draw_scatter(pairs, 1)
-        draw_scatter(pairs, 2)
+        draw_scatter(pairs, 2)'''
 
         count += 1
     mse_avg = mse_sum / count

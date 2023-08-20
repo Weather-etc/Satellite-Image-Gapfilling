@@ -5,6 +5,7 @@ coefficient of axis  1 :  [[0.84865265]]
 interception of axis  1 :  [4.62574986]
 coefficient of axis  2 :  [[0.96946664]]
 interception of axis  2 :  [16.80316782]
+
 METHOD: "Biharmonic"
 coefficient of axis  0 :  [[1.03914458]]
 interception of axis  0 :  [-2.53621686]
@@ -12,3 +13,11 @@ coefficient of axis  1 :  [[0.93990195]]
 interception of axis  1 :  [-1.18488122]
 coefficient of axis  2 :  [[1.00289854]]
 interception of axis  2 :  [-2.6070268]
+
+METHOD: "Dilate_Bihar"
+coefficient of axis  0 :  [[0.94565051]]
+interception of axis  0 :  [-0.37284819]
+coefficient of axis  1 :  [[0.89879299]]
+interception of axis  1 :  [0.91485594]
+coefficient of axis  2 :  [[1.01090229]]
+interception of axis  2 :  [1.89909847]

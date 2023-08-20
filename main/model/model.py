@@ -227,6 +227,8 @@ class InpaintModel:
         img = img.astype(np.uint8)
         img = cv.cvtColor(img, cv.COLOR_HSV2BGR)
 
+        plt.imshow(img)
+        plt.show()
         cv.imshow('res', img)
         cv.waitKey(0)
 
